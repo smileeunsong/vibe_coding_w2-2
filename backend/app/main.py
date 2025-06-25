@@ -90,7 +90,7 @@ async def read_root():
 async def health_check():
     """서버 헬스체크 엔드포인트입니다."""
     return {
-        status: "healthy",  # 의도적 버그: "status" 키에 따옴표 누락
+        "status": "healthy",
         "message": "서버가 정상적으로 실행중입니다."
     }
 
