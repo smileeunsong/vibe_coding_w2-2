@@ -96,4 +96,34 @@ async def health_check():
             "gemini": bool(os.getenv("GEMINI_API_KEY")),
             "langsmith": bool(os.getenv("LANGSMITH_API_KEY"))
         }
-    } 
+    }
+
+
+@app.get("/test")
+async def test_endpoint():
+    """테스트용 엔드포인트입니다. GitHub Actions 자동화 테스트를 위해 추가되었습니다."""
+    return {
+        "message": "테스트 엔드포인트가 성공적으로 호출되었습니다! 🚀",
+        "test_data": {
+            "timestamp": "2024-06-25",
+            "purpose": "GitHub Actions 자동화 테스트",
+            "features": [
+                "자동 PR 생성",
+                "자동 리뷰어 할당", 
+                "자동 라벨링",
+                "코드 품질 검사",
+                "테스트 실행"
+            ]
+        },
+        "success": True
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        reload=True
+    ) 
