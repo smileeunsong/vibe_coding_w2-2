@@ -1,0 +1,66 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# GitHub 워크플로우 및 관리 규칙
+
+## PR (Pull Request) 관리 규칙
+
+### PR 생성 규칙
+1. **브랜치 명명 규칙**
+   - `feature/TASK-ID-description` (새 기능)
+   - `bugfix/TASK-ID-description` (버그 수정)
+   - `hotfix/TASK-ID-description` (긴급 수정)
+   - `refactor/TASK-ID-description` (리팩토링)
+
+2. **PR 제목 규칙**
+   - `[TASK-ID] 작업 제목`
+   - 예: `[TASK-002] FastAPI 백엔드 기본 구조 구현`
+
+3. **PR 템플릿 필수 항목**
+   - 작업 내용 요약
+   - 변경사항 상세 설명
+   - 테스트 결과
+   - 관련 이슈 링크
+
+### PR 리뷰 규칙
+1. **필수 리뷰어**: 최소 1명 승인 필요
+2. **자동 할당**: PR 생성시 팀원 자동 할당
+3. **라벨 자동 적용**: 브랜치명/파일 변경사항 기반
+4. **코드 리뷰 자동화**: AI 기반 초기 리뷰 제공
+
+## 이슈 (Issue) 관리 규칙
+
+### 이슈 생성 규칙
+1. **이슈 유형**
+   - `bug`: 버그 신고
+   - `feature`: 새 기능 요청
+   - `enhancement`: 기능 개선
+   - `documentation`: 문서 관련
+   - `question`: 질문
+
+2. **이슈 제목 규칙**
+   - `[유형] 간단한 제목`
+   - 예: `[bug] 채팅 API 응답 오류`
+
+### 이슈 할당 및 라벨링
+1. **자동 할당**: 이슈 유형별 담당자 자동 할당
+2. **우선순위 라벨**: `priority/high`, `priority/medium`, `priority/low`
+3. **상태 라벨**: `status/todo`, `status/in-progress`, `status/review`, `status/done`
+
+## 워크플로우 자동화
+
+### 테스트 자동화
+- Push/PR 시 자동 테스트 실행
+- 테스트 결과 PR 코멘트 자동 등록
+
+### 알림 및 할당
+- PR/이슈 생성시 관련자 자동 알림
+- 브랜치명 기반 자동 할당
+- 라벨 자동 적용
+
+### 코드 품질 관리
+- 자동 코드 리뷰 제공
+- 테스트 커버리지 확인
+- 코딩 스타일 체크

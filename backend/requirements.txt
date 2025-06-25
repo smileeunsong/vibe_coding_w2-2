@@ -1,0 +1,21 @@
+# FastAPI 관련
+fastapi
+uvicorn[standard]
+
+# LangGraph 및 AI 관련
+langgraph
+langchain-google-genai
+langchain-community
+langsmith
+
+# DuckDuckGo 검색
+duckduckgo-search
+
+# 환경 변수 관리
+python-dotenv
+
+# HTTP 요청
+httpx
+
+# 기타 유틸리티
+pydantic 

@@ -1,0 +1,161 @@
+name: PR 코드 리뷰 자동 등록
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  auto-code-review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Python 환경 설정
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort mypy bandit safety
+
+      - name: 코드 품질 검사
+        id: code-quality
+        run: |
+          echo "# 코드 품질 검사 결과" > review_comments.md
+          echo "" >> review_comments.md
+
+          # Flake8 검사 (코딩 스타일)
+          echo "## 📋 코딩 스타일 검사 (flake8)" >> review_comments.md
+          if flake8 backend/ frontend/ --max-line-length=88 --extend-ignore=E203,W503 > flake8_output.txt 2>&1; then
+            echo "✅ 코딩 스타일 검사 통과" >> review_comments.md
+          else
+            echo "❌ 코딩 스타일 이슈 발견:" >> review_comments.md
+            echo "\`\`\`" >> review_comments.md
+            cat flake8_output.txt >> review_comments.md
+            echo "\`\`\`" >> review_comments.md
+          fi
+          echo "" >> review_comments.md
+
+          # Black 포맷팅 검사
+          echo "## 🎨 코드 포맷팅 검사 (black)" >> review_comments.md
+          if black --check backend/ frontend/ > black_output.txt 2>&1; then
+            echo "✅ 코드 포맷팅 일관성 확인" >> review_comments.md
+          else
+            echo "❌ 포맷팅 개선 필요:" >> review_comments.md
+            echo "\`\`\`" >> review_comments.md
+            cat black_output.txt >> review_comments.md
+            echo "\`\`\`" >> review_comments.md
+            echo "**권장사항**: \`black backend/ frontend/\` 실행하여 자동 포맷팅" >> review_comments.md
+          fi
+          echo "" >> review_comments.md
+
+          # Import 정렬 검사
+          echo "## 📦 Import 정렬 검사 (isort)" >> review_comments.md
+          if isort --check-only backend/ frontend/ > isort_output.txt 2>&1; then
+            echo "✅ Import 정렬 확인" >> review_comments.md
+          else
+            echo "❌ Import 정렬 개선 필요:" >> review_comments.md
+            echo "**권장사항**: \`isort backend/ frontend/\` 실행하여 자동 정렬" >> review_comments.md
+          fi
+          echo "" >> review_comments.md
+
+          # 보안 검사
+          echo "## 🔒 보안 검사 (bandit)" >> review_comments.md
+          if bandit -r backend/ -f txt > bandit_output.txt 2>&1; then
+            echo "✅ 보안 이슈 없음" >> review_comments.md
+          else
+            echo "⚠️ 보안 검토 필요:" >> review_comments.md
+            echo "\`\`\`" >> review_comments.md
+            tail -20 bandit_output.txt >> review_comments.md
+            echo "\`\`\`" >> review_comments.md
+          fi
+
+      - name: 파일 변경 분석
+        id: file-analysis
+        run: |
+          echo "" >> review_comments.md
+          echo "## 📁 파일 변경 분석" >> review_comments.md
+
+          # 변경된 파일 목록
+          git diff --name-only origin/${{ github.base_ref }}..HEAD > changed_files.txt
+
+          if [ -s changed_files.txt ]; then
+            echo "**변경된 파일들:**" >> review_comments.md
+            while read file; do
+              echo "- \`$file\`" >> review_comments.md
+            done < changed_files.txt
+            
+            echo "" >> review_comments.md
+            echo "**리뷰 포인트:**" >> review_comments.md
+            
+            # 파일별 리뷰 포인트
+            while read file; do
+              if [[ $file == *.py ]]; then
+                echo "- \`$file\`: Python 코드 - 함수/클래스 설계, 예외 처리, 테스트 코드 확인" >> review_comments.md
+              elif [[ $file == *requirements.txt ]]; then
+                echo "- \`$file\`: 의존성 변경 - 보안성, 라이선스, 버전 호환성 확인" >> review_comments.md
+              elif [[ $file == *.md ]]; then
+                echo "- \`$file\`: 문서 - 정확성, 완전성, 가독성 확인" >> review_comments.md
+              elif [[ $file == *.yml ]] || [[ $file == *.yaml ]]; then
+                echo "- \`$file\`: 설정 파일 - 구문, 보안, 환경별 설정 확인" >> review_comments.md
+              fi
+            done < changed_files.txt
+          fi
+
+      - name: 자동 코드 리뷰 댓글 등록
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+
+            try {
+              const reviewComments = fs.readFileSync('review_comments.md', 'utf8');
+              
+              const comment = `
+              ## 🤖 자동 코드 리뷰
+              
+              ${reviewComments}
+              
+              ---
+              
+              ### 💡 일반적인 리뷰 체크리스트
+              
+              **기능성**
+              - [ ] 요구사항에 맞게 구현되었는가?
+              - [ ] 예외 상황이 적절히 처리되었는가?
+              - [ ] 성능상 문제는 없는가?
+              
+              **코드 품질**
+              - [ ] 함수/클래스가 단일 책임을 갖는가?
+              - [ ] 변수명과 함수명이 명확한가?
+              - [ ] 주석이 필요한 부분에 적절히 작성되었는가?
+              
+              **테스트**
+              - [ ] 단위 테스트가 작성되었는가?
+              - [ ] 테스트 커버리지가 충분한가?
+              - [ ] 엣지 케이스가 테스트되었는가?
+              
+              **보안**
+              - [ ] 입력값 검증이 적절한가?
+              - [ ] 민감한 정보가 노출되지 않는가?
+              - [ ] SQL 인젝션 등 보안 취약점이 없는가?
+              
+              *이 리뷰는 자동으로 생성되었습니다. 추가적인 수동 리뷰를 권장합니다.* 🔍
+              `;
+              
+              await github.rest.issues.createComment({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+              
+            } catch (error) {
+              console.error('리뷰 댓글 등록 중 오류:', error);
+            }

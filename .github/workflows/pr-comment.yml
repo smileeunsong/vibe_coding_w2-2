@@ -1,0 +1,73 @@
+name: PR 자동 댓글
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  pr-comment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: PR 정보 수집
+        id: pr-info
+        run: |
+          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "pr_title=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
+          echo "pr_author=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+          echo "branch_name=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+
+          # 변경된 파일 분석
+          FILES_CHANGED=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" | \
+            jq -r '.[].filename' | head -10)
+
+          echo "files_changed<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILES_CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 자동 댓글 작성
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const prNumber = ${{ steps.pr-info.outputs.pr_number }};
+            const prTitle = `${{ steps.pr-info.outputs.pr_title }}`;
+            const prAuthor = `${{ steps.pr-info.outputs.pr_author }}`;
+            const branchName = `${{ steps.pr-info.outputs.branch_name }}`;
+            const filesChanged = `${{ steps.pr-info.outputs.files_changed }}`;
+
+            const comment = `
+            ## 🎉 PR 자동 분석 결과
+
+            **작성자**: @${prAuthor}
+            **브랜치**: \`${branchName}\`
+
+            ### 📋 체크리스트
+            - [ ] 코드 리뷰 완료
+            - [ ] 테스트 코드 작성/업데이트
+            - [ ] 문서 업데이트 (필요시)
+            - [ ] 브랜치명 규칙 준수 확인
+
+            ### 📁 주요 변경 파일
+            \`\`\`
+            ${filesChanged.split('\n').slice(0, 10).join('\n')}
+            \`\`\`
+
+            ### 🔍 리뷰 가이드
+            - 변경사항이 요구사항에 맞는지 확인해주세요
+            - 테스트 코드가 충분히 작성되었는지 확인해주세요
+            - 코딩 컨벤션을 준수했는지 확인해주세요
+
+            ---
+            *이 댓글은 자동으로 생성되었습니다.* 🤖
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

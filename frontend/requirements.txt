@@ -1,0 +1,8 @@
+# Streamlit 프레임워크
+streamlit
+
+# HTTP 요청
+requests
+
+# UI 개선
+streamlit-chat 

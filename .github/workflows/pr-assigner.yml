@@ -1,0 +1,97 @@
+name: PR 자동 할당
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  assign-reviewers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: PR 자동 할당
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const prAuthor = context.payload.pull_request.user.login;
+            const branchName = context.payload.pull_request.head.ref;
+
+            // 팀원 목록 (실제 GitHub 사용자명으로 변경 필요)
+            const teamMembers = [
+              'adampark',  // 실제 GitHub 사용자명으로 변경
+              // 'team-member2',
+              // 'team-member3'
+            ];
+
+            // PR 작성자를 제외한 리뷰어 선택
+            const availableReviewers = teamMembers.filter(member => member !== prAuthor);
+
+            // 브랜치명 기반 할당 로직
+            let assignees = [];
+            let reviewers = [];
+
+            if (branchName.startsWith('feature/')) {
+              // 기능 개발: 랜덤 리뷰어 1명
+              if (availableReviewers.length > 0) {
+                const randomReviewer = availableReviewers[Math.floor(Math.random() * availableReviewers.length)];
+                reviewers.push(randomReviewer);
+              }
+            } else if (branchName.startsWith('bugfix/') || branchName.startsWith('hotfix/')) {
+              // 버그/핫픽스: 모든 팀원 리뷰
+              reviewers = availableReviewers;
+            } else if (branchName.startsWith('refactor/')) {
+              // 리팩토링: 시니어 개발자 위주
+              reviewers = availableReviewers.slice(0, 1); // 첫 번째 팀원을 시니어로 가정
+            }
+
+            // 할당자 설정 (PR 작성자가 아닌 첫 번째 팀원)
+            if (availableReviewers.length > 0) {
+              assignees.push(availableReviewers[0]);
+            }
+
+            try {
+              // 리뷰어 할당
+              if (reviewers.length > 0) {
+                await github.rest.pulls.requestReviewers({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.payload.pull_request.number,
+                  reviewers: reviewers
+                });
+                console.log(`리뷰어 할당됨: ${reviewers.join(', ')}`);
+              }
+              
+              // 담당자 할당
+              if (assignees.length > 0) {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  assignees: assignees
+                });
+                console.log(`담당자 할당됨: ${assignees.join(', ')}`);
+              }
+              
+              // 할당 결과 댓글
+              const comment = `
+              ## 🤖 자동 할당 완료
+              
+              **담당자**: ${assignees.length > 0 ? assignees.map(a => `@${a}`).join(', ') : '없음'}
+              **리뷰어**: ${reviewers.length > 0 ? reviewers.map(r => `@${r}`).join(', ') : '없음'}
+              
+              *브랜치 유형: \`${branchName.split('/')[0]}\`*
+              `;
+              
+              await github.rest.issues.createComment({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+              
+            } catch (error) {
+              console.error('할당 중 오류:', error);
+            }

@@ -1,0 +1,165 @@
+name: 이슈 라벨 자동 등록
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  label-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 이슈 자동 라벨링
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const issueTitle = issue.title.toLowerCase();
+            const issueBody = issue.body ? issue.body.toLowerCase() : '';
+
+            let labels = [];
+
+            // 이슈 유형 기반 라벨링
+            if (issueTitle.includes('bug') || issueBody.includes('error') || issueBody.includes('문제') || issueBody.includes('버그')) {
+              labels.push('type/bug');
+              
+              // 버그 심각도 분석
+              if (issueBody.includes('크래시') || issueBody.includes('crash') || issueBody.includes('심각') || issueBody.includes('critical')) {
+                labels.push('priority/critical', 'severity/high');
+              } else if (issueBody.includes('블로킹') || issueBody.includes('blocking') || issueBody.includes('막힘')) {
+                labels.push('priority/high', 'severity/medium');
+              } else {
+                labels.push('priority/medium', 'severity/low');
+              }
+            } else if (issueTitle.includes('feature') || issueTitle.includes('기능') || issueBody.includes('추가') || issueBody.includes('새로운')) {
+              labels.push('type/enhancement');
+              labels.push('priority/medium');
+            } else if (issueTitle.includes('question') || issueTitle.includes('질문') || issueTitle.includes('도움') || issueTitle.includes('how')) {
+              labels.push('type/question');
+              labels.push('priority/low');
+            } else if (issueTitle.includes('documentation') || issueTitle.includes('문서') || issueTitle.includes('doc')) {
+              labels.push('type/documentation');
+              labels.push('priority/low');
+            } else if (issueTitle.includes('performance') || issueTitle.includes('성능') || issueTitle.includes('느림') || issueTitle.includes('slow')) {
+              labels.push('type/performance');
+              labels.push('priority/medium');
+            } else if (issueTitle.includes('security') || issueTitle.includes('보안') || issueTitle.includes('취약점')) {
+              labels.push('type/security');
+              labels.push('priority/high');
+            } else {
+              labels.push('type/other');
+              labels.push('priority/medium');
+            }
+
+            // 영역별 라벨링
+            if (issueBody.includes('api') || issueBody.includes('backend') || issueBody.includes('서버') || issueBody.includes('fastapi')) {
+              labels.push('area/backend');
+            }
+            if (issueBody.includes('ui') || issueBody.includes('frontend') || issueBody.includes('화면') || issueBody.includes('streamlit')) {
+              labels.push('area/frontend');
+            }
+            if (issueBody.includes('test') || issueBody.includes('테스트') || issueBody.includes('pytest')) {
+              labels.push('area/testing');
+            }
+            if (issueBody.includes('deploy') || issueBody.includes('배포') || issueBody.includes('ci/cd') || issueBody.includes('docker')) {
+              labels.push('area/devops');
+            }
+            if (issueBody.includes('database') || issueBody.includes('db') || issueBody.includes('데이터베이스')) {
+              labels.push('area/database');
+            }
+
+            // 상태 라벨링
+            labels.push('status/triage');  // 새로운 이슈는 우선 트리아지 상태
+
+            // 특별 라벨링
+            if (issueTitle.includes('good first issue') || issueBody.includes('초보자')) {
+              labels.push('good-first-issue');
+            }
+            if (issueTitle.includes('help wanted') || issueBody.includes('도움 필요')) {
+              labels.push('help-wanted');
+            }
+            if (issueTitle.includes('duplicate') || issueBody.includes('중복')) {
+              labels.push('duplicate');
+            }
+
+            // 플랫폼/환경 라벨링
+            if (issueBody.includes('windows') || issueBody.includes('윈도우')) {
+              labels.push('platform/windows');
+            }
+            if (issueBody.includes('macos') || issueBody.includes('mac')) {
+              labels.push('platform/macos');
+            }
+            if (issueBody.includes('linux') || issueBody.includes('리눅스')) {
+              labels.push('platform/linux');
+            }
+            if (issueBody.includes('chrome') || issueBody.includes('firefox') || issueBody.includes('safari') || issueBody.includes('브라우저')) {
+              labels.push('platform/browser');
+            }
+
+            // 컴포넌트별 라벨링 (프로젝트 구조 기반)
+            if (issueBody.includes('langgraph') || issueBody.includes('agent') || issueBody.includes('에이전트')) {
+              labels.push('component/langgraph');
+            }
+            if (issueBody.includes('gemini') || issueBody.includes('llm') || issueBody.includes('ai')) {
+              labels.push('component/llm');
+            }
+            if (issueBody.includes('chat') || issueBody.includes('채팅') || issueBody.includes('대화')) {
+              labels.push('component/chat');
+            }
+
+            // 중복 제거
+            labels = [...new Set(labels)];
+
+            try {
+              // 라벨 적용
+              if (labels.length > 0) {
+                await github.rest.issues.setLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: labels
+                });
+                
+                console.log(`적용된 라벨: ${labels.join(', ')}`);
+                
+                // 라벨링 결과 댓글 (편집된 이슈가 아닌 경우만)
+                if (context.payload.action === 'opened') {
+                  const comment = `
+                  ## 🏷️ 자동 라벨링 완료
+                  
+                  다음 라벨이 자동으로 적용되었습니다:
+                  
+                  ${labels.map(label => {
+                    if (label.startsWith('type/')) return `**유형**: \`${label}\``;
+                    if (label.startsWith('priority/')) return `**우선순위**: \`${label}\``;
+                    if (label.startsWith('area/')) return `**영역**: \`${label}\``;
+                    if (label.startsWith('status/')) return `**상태**: \`${label}\``;
+                    if (label.startsWith('platform/')) return `**플랫폼**: \`${label}\``;
+                    if (label.startsWith('component/')) return `**컴포넌트**: \`${label}\``;
+                    return `**기타**: \`${label}\``;
+                  }).join('\n')}
+                  
+                  ### 📝 라벨 설명
+                  - **type/**: 이슈의 유형 (bug, enhancement, question 등)
+                  - **priority/**: 우선순위 (critical, high, medium, low)
+                  - **area/**: 관련 영역 (backend, frontend, testing 등)
+                  - **status/**: 진행 상태 (triage, todo, in-progress 등)
+                  
+                  라벨이 잘못 적용되었다면 수동으로 수정해주세요!
+                  
+                  ---
+                  *자동 라벨링 시스템에 의해 생성되었습니다.* 🤖
+                  `;
+                  
+                  await github.rest.issues.createComment({
+                    issue_number: issue.number,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    body: comment
+                  });
+                }
+              }
+              
+            } catch (error) {
+              console.error('라벨 적용 중 오류:', error);
+            }

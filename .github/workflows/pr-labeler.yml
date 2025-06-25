@@ -1,0 +1,144 @@
+name: PR 라벨 자동 등록
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  label-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 자동 라벨링
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const branchName = context.payload.pull_request.head.ref;
+            const prTitle = context.payload.pull_request.title;
+            const baseBranch = context.payload.pull_request.base.ref;
+
+            let labels = [];
+
+            // 브랜치명 기반 라벨링
+            if (branchName.startsWith('feature/')) {
+              labels.push('type/feature');
+            } else if (branchName.startsWith('bugfix/')) {
+              labels.push('type/bugfix');
+            } else if (branchName.startsWith('hotfix/')) {
+              labels.push('type/hotfix', 'priority/high');
+            } else if (branchName.startsWith('refactor/')) {
+              labels.push('type/refactor');
+            } else {
+              labels.push('type/other');
+            }
+
+            // PR 제목 기반 라벨링
+            const titleLower = prTitle.toLowerCase();
+            if (titleLower.includes('wip') || titleLower.includes('work in progress')) {
+              labels.push('status/wip');
+            }
+            if (titleLower.includes('breaking')) {
+              labels.push('breaking-change');
+            }
+            if (titleLower.includes('test')) {
+              labels.push('type/test');
+            }
+            if (titleLower.includes('doc')) {
+              labels.push('type/documentation');
+            }
+
+            // 타겟 브랜치 기반 라벨링
+            if (baseBranch === 'main') {
+              labels.push('target/main');
+            } else if (baseBranch === 'develop') {
+              labels.push('target/develop');
+            }
+
+            // 변경된 파일 기반 라벨링
+            try {
+              const { data: files } = await github.rest.pulls.listFiles({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+              
+              const fileNames = files.map(file => file.filename);
+              
+              // 파일 경로 기반 라벨링
+              const hasBackendChanges = fileNames.some(name => name.startsWith('backend/'));
+              const hasFrontendChanges = fileNames.some(name => name.startsWith('frontend/'));
+              const hasTestChanges = fileNames.some(name => name.includes('test'));
+              const hasDocChanges = fileNames.some(name => name.endsWith('.md') || name.includes('doc'));
+              const hasConfigChanges = fileNames.some(name => 
+                name.includes('requirements.txt') || 
+                name.includes('config') || 
+                name.includes('.yml') || 
+                name.includes('.yaml')
+              );
+              
+              if (hasBackendChanges) labels.push('area/backend');
+              if (hasFrontendChanges) labels.push('area/frontend');
+              if (hasTestChanges) labels.push('area/test');
+              if (hasDocChanges) labels.push('area/documentation');
+              if (hasConfigChanges) labels.push('area/config');
+              
+              // 변경 크기 기반 라벨링
+              const totalChanges = files.reduce((sum, file) => sum + file.changes, 0);
+              if (totalChanges < 10) {
+                labels.push('size/xs');
+              } else if (totalChanges < 50) {
+                labels.push('size/small');
+              } else if (totalChanges < 200) {
+                labels.push('size/medium');
+              } else if (totalChanges < 500) {
+                labels.push('size/large');
+              } else {
+                labels.push('size/xl');
+              }
+              
+            } catch (error) {
+              console.error('파일 분석 중 오류:', error);
+            }
+
+            // 중복 제거
+            labels = [...new Set(labels)];
+
+            // 라벨 적용
+            if (labels.length > 0) {
+              try {
+                await github.rest.issues.setLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  labels: labels
+                });
+                
+                console.log(`적용된 라벨: ${labels.join(', ')}`);
+                
+                // 라벨링 결과 댓글
+                const comment = `
+                ## 🏷️ 자동 라벨링 완료
+                
+                다음 라벨이 자동으로 적용되었습니다:
+                ${labels.map(label => `- \`${label}\``).join('\n')}
+                
+                *라벨은 브랜치명, PR 제목, 변경된 파일을 기반으로 자동 생성됩니다.*
+                `;
+                
+                await github.rest.issues.createComment({
+                  issue_number: prNumber,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+                
+              } catch (error) {
+                console.error('라벨 적용 중 오류:', error);
+              }
+            }

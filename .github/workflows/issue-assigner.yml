@@ -1,0 +1,131 @@
+name: 이슈 자동 할당
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  assign-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 이슈 자동 할당
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const issueTitle = issue.title.toLowerCase();
+            const issueBody = issue.body ? issue.body.toLowerCase() : '';
+            const author = issue.user.login;
+
+            // 팀원 목록 (실제 GitHub 사용자명으로 변경 필요)
+            const teamMembers = {
+              backend: ['adampark'],  // 백엔드 담당자
+              frontend: ['adampark'], // 프론트엔드 담당자
+              devops: ['adampark'],   // DevOps 담당자
+              general: ['adampark']   // 일반 담당자
+            };
+
+            let assignees = [];
+            let issueType = 'general';
+
+            // 이슈 유형별 담당자 할당
+            if (issueTitle.includes('bug') || issueBody.includes('error') || issueBody.includes('문제')) {
+              issueType = 'bug';
+              
+              // 버그 위치에 따른 담당자 할당
+              if (issueBody.includes('api') || issueBody.includes('backend') || issueBody.includes('서버')) {
+                assignees = teamMembers.backend;
+              } else if (issueBody.includes('ui') || issueBody.includes('frontend') || issueBody.includes('화면')) {
+                assignees = teamMembers.frontend;
+              } else {
+                // 일반 버그는 모든 팀원에게 할당
+                assignees = [...new Set([...teamMembers.backend, ...teamMembers.frontend])];
+              }
+            } else if (issueTitle.includes('feature') || issueTitle.includes('기능') || issueBody.includes('추가')) {
+              issueType = 'feature';
+              
+              // 기능 영역에 따른 담당자 할당
+              if (issueBody.includes('api') || issueBody.includes('backend') || issueBody.includes('서버')) {
+                assignees = teamMembers.backend;
+              } else if (issueBody.includes('ui') || issueBody.includes('frontend') || issueBody.includes('화면')) {
+                assignees = teamMembers.frontend;
+              } else {
+                assignees = teamMembers.general;
+              }
+            } else if (issueTitle.includes('deploy') || issueTitle.includes('배포') || issueBody.includes('인프라')) {
+              issueType = 'devops';
+              assignees = teamMembers.devops;
+            } else if (issueTitle.includes('question') || issueTitle.includes('질문') || issueTitle.includes('도움')) {
+              issueType = 'question';
+              assignees = teamMembers.general;
+            } else if (issueTitle.includes('documentation') || issueTitle.includes('문서')) {
+              issueType = 'documentation';
+              assignees = teamMembers.general;
+            } else {
+              // 기타 이슈는 일반 담당자에게 할당
+              assignees = teamMembers.general;
+            }
+
+            // 이슈 작성자는 담당자에서 제외
+            assignees = assignees.filter(member => member !== author);
+
+            try {
+              // 담당자 할당
+              if (assignees.length > 0) {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: assignees
+                });
+                
+                console.log(`담당자 할당됨: ${assignees.join(', ')}`);
+                
+                // 할당 결과 댓글
+                const comment = `
+                ## 👥 자동 할당 완료
+                
+                **담당자**: ${assignees.map(a => `@${a}`).join(', ')}
+                **이슈 유형**: \`${issueType}\`
+                
+                ### 📋 담당자 안내
+                할당받으신 담당자분들께서는 다음 사항을 확인해주세요:
+                
+                **버그 이슈인 경우**
+                - [ ] 재현 가능 여부 확인
+                - [ ] 우선순위 설정
+                - [ ] 수정 계획 수립
+                
+                **기능 요청인 경우**
+                - [ ] 요구사항 명확화
+                - [ ] 기술적 검토
+                - [ ] 개발 일정 검토
+                
+                **질문인 경우**
+                - [ ] 명확한 답변 제공
+                - [ ] 관련 문서 안내
+                
+                ### ⏰ 응답 목표
+                - **긴급 이슈**: 24시간 이내
+                - **일반 이슈**: 3일 이내
+                - **질문**: 1-2일 이내
+                
+                ---
+                *자동 할당 시스템에 의해 생성되었습니다.* 🤖
+                `;
+                
+                await github.rest.issues.createComment({
+                  issue_number: issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+                
+              } else {
+                console.log('할당 가능한 담당자가 없습니다.');
+              }
+              
+            } catch (error) {
+              console.error('이슈 할당 중 오류:', error);
+            }

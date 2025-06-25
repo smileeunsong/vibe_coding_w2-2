@@ -1,0 +1,108 @@
+name: 🐛 버그 신고
+description: 버그를 발견하셨나요? 버그 신고를 통해 프로젝트 개선에 도움을 주세요.
+title: "[Bug] "
+labels: ["type/bug", "status/triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        버그 신고해주셔서 감사합니다! 🙏
+        자세한 정보를 제공해주시면 더 빠르게 문제를 해결할 수 있습니다.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: 🐛 버그 설명
+      description: 발견한 버그에 대해 명확하고 간결하게 설명해주세요.
+      placeholder: 예) 채팅 메시지를 전송할 때 서버에서 500 에러가 발생합니다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: 🔄 재현 단계
+      description: 버그를 재현하기 위한 단계를 순서대로 적어주세요.
+      placeholder: |
+        1. 웹페이지에 접속
+        2. 채팅창에 메시지 입력
+        3. 전송 버튼 클릭
+        4. 에러 발생
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: ✅ 예상 동작
+      description: 어떤 동작을 예상했는지 설명해주세요.
+      placeholder: 메시지가 정상적으로 전송되고 응답을 받을 것으로 예상했습니다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: ❌ 실제 동작
+      description: 실제로 어떤 일이 일어났는지 설명해주세요.
+      placeholder: 500 Internal Server Error가 발생하고 메시지가 전송되지 않습니다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-logs
+    attributes:
+      label: 📝 에러 로그
+      description: 관련 에러 로그나 스크린샷이 있다면 첨부해주세요.
+      placeholder: |
+        ```
+        Error: Internal Server Error
+        at ...
+        ```
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: 🏗️ 관련 컴포넌트
+      description: 버그가 발생한 컴포넌트를 선택해주세요.
+      options:
+        - Backend (FastAPI)
+        - Frontend (Streamlit)
+        - LangGraph Agent
+        - Chat API
+        - 기타
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 🚨 심각도
+      description: 버그의 심각도를 선택해주세요.
+      options:
+        - 낮음 (기능에 영향 없음)
+        - 보통 (일부 기능 영향)
+        - 높음 (주요 기능 영향)
+        - 심각 (앱 크래시/사용 불가)
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: 💻 환경 정보
+      description: OS, 브라우저, Python 버전 등
+      placeholder: 예) macOS 14.5, Chrome 120, Python 3.12
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: ✅ 체크리스트
+      description: 버그 신고 전 확인사항
+      options:
+        - label: 이미 보고된 버그가 아닌지 확인했습니다
+          required: true
+        - label: 최신 버전에서 발생하는 버그입니다
+          required: true
+        - label: 재현 가능한 버그입니다
+          required: true
