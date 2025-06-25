@@ -88,14 +88,10 @@ async def read_root():
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """헬스체크 엔드포인트"""
+    """서버 헬스체크 엔드포인트입니다."""
     return {
-        "status": "healthy",
-        "environment": os.getenv("DEBUG", "false"),
-        "api_keys_configured": {
-            "gemini": bool(os.getenv("GEMINI_API_KEY")),
-            "langsmith": bool(os.getenv("LANGSMITH_API_KEY"))
-        }
+        status: "healthy",  # 의도적 버그: "status" 키에 따옴표 누락
+        "message": "서버가 정상적으로 실행중입니다."
     }
 
 
