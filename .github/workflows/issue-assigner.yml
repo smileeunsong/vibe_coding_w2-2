@@ -18,12 +18,12 @@ jobs:
             const issueBody = issue.body ? issue.body.toLowerCase() : '';
             const author = issue.user.login;
 
-            // 팀원 목록 (실제 GitHub 사용자명으로 변경 필요)
+            // 팀원 목록
             const teamMembers = {
-              backend: ['adampark'],  // 백엔드 담당자
-              frontend: ['adampark'], // 프론트엔드 담당자
-              devops: ['adampark'],   // DevOps 담당자
-              general: ['adampark']   // 일반 담당자
+              backend: ['smileeunsong'],  // 백엔드 담당자
+              frontend: ['smileeunsong'], // 프론트엔드 담당자
+              devops: ['smileeunsong'],   // DevOps 담당자
+              general: ['smileeunsong']   // 일반 담당자
             };
 
             let assignees = [];
